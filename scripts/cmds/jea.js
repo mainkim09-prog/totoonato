@@ -13,8 +13,9 @@ async function getSimReply(api, event, prompt) {
   try {
     const uid = event.senderID;
     let name = "User";
+    let imageUrl = null;
 
-    // SAFE get name
+    // ✅ SAFE NAME FETCH
     try {
       const threadInfo = await api.getThreadInfo(event.threadID);
       const user = threadInfo.userInfo?.find(u => u.id === uid);
@@ -26,18 +27,30 @@ async function getSimReply(api, event, prompt) {
       if (threadInfo.nicknames?.[uid]) {
         name = threadInfo.nicknames[uid];
       }
-    } catch {
-      // ignore
-    }
+    } catch {}
 
     if (!name || name === "Facebook User") {
       name = `User_${String(uid).slice(-4)}`;
     }
 
+    // ✅ SAFE IMAGE DETECTION (same as ai command)
+    if (event.messageReply?.attachments?.length) {
+      const img = event.messageReply.attachments.find(att =>
+        att.type === "photo" || att.type === "animated_image"
+      );
+
+      if (img?.url) imageUrl = img.url;
+    }
+
     const apiBase = "https://norch-project.gleeze.com/api/jea";
 
     const res = await axios.get(apiBase, {
-      params: { prompt, uid, name },
+      params: {
+        prompt,
+        uid,
+        name,
+        imageUrl: imageUrl || undefined
+      },
       timeout: 15000
     });
 
@@ -57,8 +70,8 @@ async function getSimReply(api, event, prompt) {
 module.exports = {
   config: {
     name: "jea",
-    version: "3.1.0",
-    author: "April Manalo (fixed)",
+    version: "3.2.0",
+    author: "April Manalo (image support)",
     role: 0,
     category: "ai",
     guide: "-jea on | off | <message>"
@@ -90,15 +103,17 @@ module.exports = {
       }
 
       const prompt = args.join(" ").trim();
-      if (!prompt) {
+
+      // ❌ no text + no image
+      if (!prompt && !event.messageReply?.attachments?.length) {
         return api.sendMessage(
-          "⚠️ Usage:\n-jea on\n-jea off\n-jea <message>",
+          "⚠️ Usage:\n-jea on\n-jea off\n-jea <message>\n(or reply to an image)",
           event.threadID,
           event.messageID
         );
       }
 
-      const reply = await getSimReply(api, event, prompt);
+      const reply = await getSimReply(api, event, prompt || "Tignan mo to");
       if (!reply) {
         return api.sendMessage(
           "⚠️ Jea is unavailable.",
@@ -123,29 +138,18 @@ module.exports = {
   // ======================
   onChat: async function ({ api, event }) {
     try {
-      // must be enabled
       if (!simEnabled) return;
-
-      // ignore bot itself
       if (event.senderID === api.getCurrentUserID()) return;
-
-      // ignore non-text
       if (!event.body || typeof event.body !== "string") return;
 
       const body = event.body.trim();
 
-      // ignore commands
       if (body.startsWith("-")) return;
-
-      // ignore very short
       if (body.length < 2) return;
 
-      // cooldown (5 sec per user)
       const now = Date.now();
       if (cooldown.get(event.senderID) > now - 5000) return;
       cooldown.set(event.senderID, now);
-
-      console.log("[JEA] Auto-reply:", body);
 
       const reply = await getSimReply(api, event, body);
       if (!reply) return;
