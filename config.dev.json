@@ -1,5 +1,5 @@
 {
-  "author": "April Manalo", /// Don't modify this to avoid voided bots systems thank you🥰
+  "author": "April Manalo", /// Don't modify this to avoid voided bots systems thank you🥰 remove this after you read
   "facebookAccount": {
     "i_user": "",
     "proxy": null,
@@ -15,7 +15,7 @@
     "enable": false,
     "ignoreCommand": []
   },
-  "adminBot": [uid here],
+  "adminBot": ["uid_here"],
   "whiteListMode": {
     "enable": false,
     "whiteListIds": [],
